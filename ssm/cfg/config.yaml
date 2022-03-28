@@ -1,0 +1,4 @@
+host: 'localhost'
+port: '8888'
+cert: 'ssmcert.crt'
+key: 'ssmkey.pem'

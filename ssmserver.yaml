@@ -1,0 +1,12 @@
+version: "3"
+services:
+  ssmserver:
+    container_name: softhsm
+    build:
+      context: . 
+      dockerfile: SSMDockerfile
+    network_mode: host
+    ports:
+      - '8888:8888'
+    expose:
+      - 8888
