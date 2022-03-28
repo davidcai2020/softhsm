@@ -5,8 +5,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"strings"
@@ -201,20 +204,43 @@ func (s *cryptoServiceServer) SSMPing(ctx context.Context, in *pb.EmptyRequest) 
 		OutputBufferSize: int32(len(data))}, nil
 }
 
-func launchTlsServer(svrCfg *util.ServerCfg, cfgPath string) {
+func launchServer(svrCfg *util.ServerCfg, cfgPath string) {
 	addr := fmt.Sprintf("%s:%s", "0.0.0.0", svrCfg.Port)
 	log.Printf("addr = %s\n", addr)
 
-	// launcher TLS cryptoService
+	// load svr cert & key
 	cert := cfgPath + "/" + svrCfg.Cert
 	log.Printf("cert = %s\n", cert)
 	key := cfgPath + "/" + svrCfg.Key
 	log.Printf("key = %s\n", key)
-	creds, err := credentials.NewServerTLSFromFile(cert, key)
+	svrCert, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
-		log.Fatalf("failed to load cert & key: %v", err)
+		log.Fatalf("failed to load svr cert & key: %v", err)
 	}
-	s := grpc.NewServer(grpc.Creds(creds))
+	log.Printf("successfully load svr cert & key.\n")
+
+	// load svr CA
+	cacert := cfgPath + "/" + svrCfg.CACert
+	log.Printf("cacert = %s\n", cacert)
+	svrCA, err := ioutil.ReadFile(cacert)
+	if err != nil {
+		log.Fatalf("failed to svr CA: %v", err)
+	}
+	log.Printf("successfully load svr CA.\n")
+
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(svrCA) {
+		log.Fatalf("failed to add svr CA's certificate")
+	}
+	log.Printf("successfully add svr CA.\n")
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{svrCert},
+		//ClientAuth:   tls.RequireAndVerifyClientCert,
+		RootCAs: cp,
+	}
+
+	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(config)))
 	listen, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -237,6 +263,6 @@ func main() {
 		log.Fatalf("GetConf() failed: %v", err)
 	}
 
-	// launch TLS server
-	launchTlsServer(svrCfg, cfgPath)
+	// launch mTLS server
+	launchServer(svrCfg, cfgPath)
 }

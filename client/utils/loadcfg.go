@@ -11,10 +11,11 @@ import (
 )
 
 type ClientCfg struct {
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
-	Cert string `yaml:"cert"`
-	Key  string `yaml:"key"`
+	Host   string `yaml:"host"`
+	Port   string `yaml:"port"`
+	Cert   string `yaml:"cert"`
+	Key    string `yaml:"key"`
+	CACert string `yaml:"cacert"`
 }
 
 var (

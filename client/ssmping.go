@@ -65,20 +65,34 @@ func main() {
 	log.Printf("cert = %s\n", cert)
 	key := cfgPath + "/" + cliCfg.Key
 	log.Printf("key = %s\n", key)
-	mine, err := ioutil.ReadFile(cert)
-	if err != nil {
-		log.Fatalf("failed to load certificate: %v", err)
-	}
-	cp, err := x509.SystemCertPool()
-	if err != nil {
-		log.Fatal("failed to get system certificate pool")
-	}
-	if !cp.AppendCertsFromPEM(mine) {
-		log.Fatalf("failed to append certificate: %v", err)
-	}
 
+	// Load client's certificate and private key
+	cliCert, err := tls.LoadX509KeyPair(cert, key)
+	if err != nil {
+		log.Fatalf("failed to load client certificate & private key: %v", err)
+	}
+	log.Printf("successfully load client certificate & private key.\n")
+
+	// load client CA
+	cacert := cfgPath + "/" + cliCfg.CACert
+	log.Printf("cacert = %s\n", cacert)
+	cliCA, err := ioutil.ReadFile(cacert)
+	if err != nil {
+		log.Fatalf("failed to load client CA: %v", err)
+	}
+	log.Printf("successfully load client CA.\n")
+
+	// add client CA
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(cliCA) {
+		log.Fatalf("failed to add client CA: %v", err)
+	}
+	log.Printf("successfully add client CA.\n")
+
+	// Create the credentials
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: false,
+		Certificates:       []tls.Certificate{cliCert},
 		RootCAs:            cp,
 	}
 
